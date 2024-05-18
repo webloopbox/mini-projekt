@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Circle, View, XStack } from 'tamagui';
+import { Circle, Text, View, XStack } from 'tamagui';
 import { Container } from '~/tamagui.config';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { faPlay } from '@fortawesome/free-solid-svg-icons/faPlay';
 import { faStop } from '@fortawesome/free-solid-svg-icons/faStop';
+import { faVolumeHigh } from '@fortawesome/free-solid-svg-icons/faVolumeHigh';
+import { faRepeat } from '@fortawesome/free-solid-svg-icons/faRepeat';
+import { faVolumeMute } from '@fortawesome/free-solid-svg-icons/faVolumeMute';
 import { faAngleDoubleLeft } from '@fortawesome/free-solid-svg-icons/faAngleDoubleLeft';
 import { faAngleDoubleRight } from '@fortawesome/free-solid-svg-icons/faAngleDoubleRight';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -14,6 +17,7 @@ import { useDerivedValue, useSharedValue, withTiming } from 'react-native-reanim
 import { Canvas, LinearGradient, Rect, vec } from '@shopify/react-native-skia';
 import { faMusic } from '@fortawesome/free-solid-svg-icons/faMusic';
 import { getRandomColor } from '~/utils';
+import { ActivityIndicator } from 'react-native';
 
 export default function Details() {
   const { trackName, uri, trackIdx }: { trackName?: string; uri?: string; trackIdx?: string } =
@@ -23,6 +27,9 @@ export default function Details() {
   const [duration, setDuration] = useState<number | null>(null);
   const [position, setPosition] = useState<number | null>(null);
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(trackIdx ? +trackIdx : 0);
+  const [volume, setVolume] = useState(1.0);
+  const [progress, setProgress] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
 
   const { audioFiles } = useGetDeviceAudioFiles();
 
@@ -49,6 +56,7 @@ export default function Details() {
     newSound.setOnPlaybackStatusUpdate((status: any) => {
       setDuration(status.durationMillis);
       setPosition(status.positionMillis);
+      setProgress(status.positionMillis / status.durationMillis);
     });
   }
 
@@ -56,9 +64,8 @@ export default function Details() {
     const intervalId = setInterval(() => {
       leftColor.value = withTiming(getRandomColor());
       rightColor.value = withTiming(getRandomColor());
-    }, 5000);
+    }, 3000);
 
-    // Clear interval on unmount
     return () => clearInterval(intervalId);
   }, [currentTrackIndex]);
 
@@ -91,6 +98,13 @@ export default function Details() {
     }
   };
 
+  const formatTime = (milliseconds: number) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
   return (
     <>
       <Stack.Screen
@@ -112,21 +126,30 @@ export default function Details() {
             <FontAwesomeIcon size={50} icon={faMusic} color="#fff" />
           </View>
         </XStack>
-        <Slider
-          style={{ width: '100%', height: 40, marginTop: 20 }}
-          minimumValue={0}
-          maximumValue={duration || 0}
-          value={position || 0}
-          minimumTrackTintColor="#3e3194"
-          maximumTrackTintColor="#fff"
-          thumbTintColor="#fff"
-          onSlidingComplete={async (value) => {
-            if (sound) {
-              await sound.setPositionAsync(value);
-            }
-          }}
-        />
-        <XStack ai="center" jc="center" columnGap={15}>
+        <XStack ai="center" jc="center" columnGap={2}>
+          {position === null || duration === null ? (
+            <ActivityIndicator size="large" color="#00ff00" />
+          ) : (
+            <Text color="#fff">
+              {formatTime(position || 0)} / {formatTime(duration || 0)}
+            </Text>
+          )}
+          <Slider
+            style={{ flex: 1, height: 40 }}
+            minimumValue={0}
+            maximumValue={duration || 0}
+            value={position || 0}
+            minimumTrackTintColor="rgb(255, 255, 255)"
+            maximumTrackTintColor="#fff"
+            thumbTintColor="#fff"
+            onSlidingComplete={async (value) => {
+              if (sound) {
+                await sound.setPositionAsync(value);
+              }
+            }}
+          />
+        </XStack>
+        <XStack ai="center" jc="center" columnGap={25}>
           <Circle
             size={50}
             backgroundColor="#3e3194"
@@ -151,6 +174,36 @@ export default function Details() {
             onPress={nextTrack}>
             <FontAwesomeIcon icon={faAngleDoubleRight} color="#fff" />
           </Circle>
+        </XStack>
+        <XStack ai="center" jc="center">
+          <Circle
+            size={50}
+            backgroundColor="#3e3194"
+            pressStyle={{ backgroundColor: '#362a81' }}
+            elevation="$4"
+            onPress={async () => {
+              if (sound) {
+                await sound.setIsMutedAsync(!isMuted);
+                setIsMuted(!isMuted);
+              }
+            }}>
+            <FontAwesomeIcon icon={isMuted ? faVolumeMute : faVolumeHigh} color="#fff" />
+          </Circle>
+          <Slider
+            style={{ width: '50%', height: 40 }}
+            minimumValue={0}
+            maximumValue={1}
+            value={volume}
+            minimumTrackTintColor="#3e3194"
+            maximumTrackTintColor="#fff"
+            thumbTintColor="#fff"
+            onValueChange={async (value) => {
+              if (sound) {
+                await sound.setVolumeAsync(value);
+                setVolume(value);
+              }
+            }}
+          />
         </XStack>
       </Container>
     </>

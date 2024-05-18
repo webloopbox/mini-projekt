@@ -4,6 +4,8 @@ import { MusicCard } from '~/components/MusicCard';
 import { LogBox } from 'react-native';
 import { useGetDeviceAudioFiles } from '~/hooks/useGetDeviceAudioFiles';
 
+LogBox.ignoreAllLogs();
+
 export default function Home() {
   const { audioFiles } = useGetDeviceAudioFiles();
 
@@ -25,5 +27,3 @@ export default function Home() {
     </>
   );
 }
-
-LogBox.ignoreLogs(['new NativeEventEmitter()']);
